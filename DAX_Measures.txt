@@ -1,0 +1,73 @@
+// MEASURE 1: Year-over-Year (YoY) Sales Growth %
+YoY_Growth % = 
+VAR CurrentYear = YEAR(TODAY())
+VAR PreviousYear = CurrentYear - 1
+VAR CurrentYearSales = CALCULATE(
+    SUM(Sales[Final_Amount]),
+    YEAR(Sales[Order_Date]) = CurrentYear
+)
+VAR PreviousYearSales = CALCULATE(
+    SUM(Sales[Final_Amount]),
+    YEAR(Sales[Order_Date]) = PreviousYear
+)
+RETURN
+IF(
+    PreviousYearSales = 0,
+    0,
+    DIVIDE(CurrentYearSales - PreviousYearSales, PreviousYearSales) * 100
+)
+
+// MEASURE 2: Running Total of Sales (Month-over-Month)
+Running_Total_Sales = 
+VAR CurrentMonth = MONTH(MAX(Sales[Order_Date]))
+VAR CurrentYear = YEAR(MAX(Sales[Order_Date]))
+VAR CurrentMonthValue = EOMONTH(MAX(Sales[Order_Date]), 0)
+RETURN
+CALCULATE(
+    SUM(Sales[Final_Amount]),
+    Sales[Order_Date] <= CurrentMonthValue,
+    YEAR(Sales[Order_Date]) = CurrentYear
+)
+
+// MEASURE 3: Customer Lifetime Value (CLV)
+Customer_Lifetime_Value = 
+SUMX(
+    VALUES(Sales[Customer_ID]),
+    CALCULATE(
+        SUM(Sales[Final_Amount]) - SUM(Sales[Discount_Amount]),
+        ALLEXCEPT(Sales, Sales[Customer_ID])
+    )
+)
+
+// MEASURE 4: Cohort Retention Rate (Repeat Customers)
+Repeat_Customer_Rate % = 
+VAR TotalCustomers = DISTINCTCOUNT(Sales[Customer_ID])
+VAR RepeatCustomers = CALCULATE(
+    DISTINCTCOUNT(Sales[Customer_ID]),
+    FILTER(
+        SUMMARIZE(Sales, Sales[Customer_ID], "OrderCount", COUNTA(Sales[Order_ID])),
+        [OrderCount] > 1
+    )
+)
+RETURN
+DIVIDE(RepeatCustomers, TotalCustomers) * 100
+
+// MEASURE 5: Dynamic Profit Margin Analysis with Conditional Logic
+Profit_Margin_Analysis = 
+VAR TotalRevenue = SUM(Sales[Final_Amount])
+VAR TotalCost = SUM(Sales[Final_Amount]) * 0.65
+VAR ProfitMargin = DIVIDE(TotalRevenue - TotalCost, TotalRevenue) * 100
+RETURN
+IF(
+    ProfitMargin > 25,
+    "Excellent",
+    IF(
+        ProfitMargin > 15,
+        "Good",
+        IF(
+            ProfitMargin > 5,
+            "Average",
+            "Poor"
+        )
+    )
+)
